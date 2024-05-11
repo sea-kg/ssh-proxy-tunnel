@@ -344,10 +344,10 @@ int ssl3_get_record(SSL *s)
                             strncmp((char *)p, "PUT ", 4) == 0) {
                             SSLfatal(s, SSL_AD_NO_ALERT, SSL_R_HTTP_REQUEST);
                             return -1;
-                        } else if (strncmp((char *)p, "CONNE", 5) == 0) {
-                            SSLfatal(s, SSL_AD_NO_ALERT,
-                                     SSL_R_HTTPS_PROXY_REQUEST);
-                            return -1;
+                        // } else if (strncmp((char *)p, "CONNE", 5) == 0) {
+                        //     SSLfatal(s, SSL_AD_NO_ALERT,
+                        //              SSL_R_HTTPS_PROXY_REQUEST);
+                        //     return -1;
                         }
 
                         /* Doesn't look like TLS - don't send an alert */
