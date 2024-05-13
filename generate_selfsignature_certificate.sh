@@ -14,13 +14,13 @@ check_ret() {
     fi
 }
 
-if [ -f selfsigned_ssl_proxy_tunnel.crt ]; then
-    rm -rf selfsigned_ssl_proxy_tunnel.crt
-    check_ret $? "Removing previously selfsigned_ssl_proxy_tunnel.crt"
+if [ -f selfsigned_ssl_tunnel.crt ]; then
+    rm -rf selfsigned_ssl_tunnel.crt
+    check_ret $? "Removing previously selfsigned_ssl_tunnel.crt"
 fi
-if [ -f selfsigned_ssl_proxy_tunnel.key ]; then
-    rm -rf selfsigned_ssl_proxy_tunnel.key
-    check_ret $? "Removing previously selfsigned_ssl_proxy_tunnel.crt"
+if [ -f selfsigned_ssl_tunnel.key ]; then
+    rm -rf selfsigned_ssl_tunnel.key
+    check_ret $? "Removing previously selfsigned_ssl_tunnel.crt"
 fi
 
 # cd openssl/build/bin
@@ -34,5 +34,5 @@ echo "**************************************************************************
 echo ""
 
 export LD_PRELOAD=$(pwd)/openssl/build/lib64/libssl.so.3:$(pwd)/openssl/build/lib64/libcrypto.so.3
-./openssl/build/bin/openssl req -x509 -new -nodes -sha512 -days 3650 -newkey rsa:2048 -keyout $(pwd)/selfsigned_ssl_proxy_tunnel.key -out $(pwd)/selfsigned_ssl_proxy_tunnel.crt
+./openssl/build/bin/openssl req -x509 -new -nodes -sha512 -days 3650 -newkey rsa:2048 -keyout $(pwd)/selfsigned_ssl_tunnel.key -out $(pwd)/selfsigned_ssl_tunnel.crt
 check_ret $? "Generating self-signature certificates successfully"

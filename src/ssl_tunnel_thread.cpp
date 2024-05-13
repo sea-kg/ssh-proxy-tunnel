@@ -34,6 +34,7 @@ void SslTunnelThread::run() {
     BIO *web = this->connectToServerB(bConnected);
     if (!bConnected) {
         this->stop();
+        CONF_modules_unload(0);
         SSL_shutdown(m_pSsl);
         SSL_free(m_pSsl);
         close(m_nClient);

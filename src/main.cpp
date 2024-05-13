@@ -66,12 +66,12 @@ SSL_CTX *create_context()
 void configure_context(SSL_CTX *ctx)
 {
     /* Set the key and cert */
-    if (SSL_CTX_use_certificate_file(ctx, "selfsigned_ssl_proxy_tunnel.crt", SSL_FILETYPE_PEM) <= 0) {
+    if (SSL_CTX_use_certificate_file(ctx, "selfsigned_ssl_tunnel.crt", SSL_FILETYPE_PEM) <= 0) {
         ERR_print_errors_fp(stderr);
         exit(EXIT_FAILURE);
     }
 
-    if (SSL_CTX_use_PrivateKey_file(ctx, "selfsigned_ssl_proxy_tunnel.key", SSL_FILETYPE_PEM) <= 0 ) {
+    if (SSL_CTX_use_PrivateKey_file(ctx, "selfsigned_ssl_tunnel.key", SSL_FILETYPE_PEM) <= 0 ) {
         ERR_print_errors_fp(stderr);
         exit(EXIT_FAILURE);
     }
@@ -86,7 +86,7 @@ void init_openssl_library(void)
     /* ERR_load_crypto_strings(); */
     static CONF *conf = NULL;
     conf = NCONF_new(NULL);
-    static char app_name[] = "ssl_proxy_tunnel";
+    static char app_name[] = "ssl_tunnel";
     CONF_modules_load(conf, app_name, 0);
 
     // OPENSSL_config(NULL);
@@ -140,7 +140,7 @@ int main(int argc, char **argv)
         }
 
         // create new thread
-        auto pThread = new SslTunnelThread(ssl, client, "130.193.41.116", 443);
+        auto pThread = new SslTunnelThread(ssl, client, "sea5kg.ru", 443);
         pThread->start();
     }
 
