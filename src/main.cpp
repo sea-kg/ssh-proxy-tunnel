@@ -9,14 +9,11 @@
 #include <openssl/err.h>
 #include "ssl_tunnel_thread.h"
 
-#define PORT 23832
-
 #if (SSLEAY_VERSION_NUMBER >= 0x0907000L)
 # include <openssl/conf.h>
 #endif
 
-int create_socket(int port)
-{
+int create_socket(int port) {
     int s;
     struct sockaddr_in addr;
 
@@ -43,8 +40,7 @@ int create_socket(int port)
     return s;
 }
 
-SSL_CTX *create_context()
-{
+SSL_CTX *create_context() {
     const SSL_METHOD *method;
     SSL_CTX *ctx;
 
@@ -63,8 +59,7 @@ SSL_CTX *create_context()
     return ctx;
 }
 
-void configure_context(SSL_CTX *ctx)
-{
+void configure_context(SSL_CTX *ctx) {
     /* Set the key and cert */
     if (SSL_CTX_use_certificate_file(ctx, "selfsigned_ssl_tunnel.crt", SSL_FILETYPE_PEM) <= 0) {
         ERR_print_errors_fp(stderr);
@@ -77,8 +72,7 @@ void configure_context(SSL_CTX *ctx)
     }
 }
 
-void init_openssl_library(void)
-{
+void init_openssl_library(void) {
     (void)SSL_library_init();
     // OpenSSL_add_all_algorithms();  /* Load cryptos, et.al. */
     SSL_load_error_strings();    /* Bring in and register error messages */
@@ -97,8 +91,22 @@ void init_openssl_library(void)
     #endif
 }
 
-int main(int argc, char **argv)
-{
+int main(int argc, char **argv) {
+    if (argc != 4) {
+        std::cout
+            << std::endl
+            << "Usage: " << std::endl
+            << "    " << argv[0] << " <LISTEN_PORT> <TUNNEL_TO_HOST_OR_IP> <TUNNEL_TO_PORT>" << std::endl
+            << std::endl
+            << "    Example: " << argv[0] << " 23832 sea5kg.ru 443" << std::endl
+            << std::endl;
+            return -1;
+    }
+
+    int LISTEN_PORT = std::stoi(argv[1]);
+    char *TUNNEL_TO_HOST_OR_IP = argv[2];
+    int TUNNEL_TO_PORT = std::stoi(argv[3]);
+
     int sock;
     SSL_CTX *ctx;
 
@@ -111,39 +119,45 @@ int main(int argc, char **argv)
 
     configure_context(ctx);
 
-    sock = create_socket(PORT);
-    char *buffer = new char[1024];
+    sock = create_socket(LISTEN_PORT);
 
-    std::cout << "Proxy: https://localhost:" << PORT << std::endl;
+    std::cout << "Tunnel: https://127.0.0.1:" << LISTEN_PORT << std::endl;
 
     /* Handle connections */
-    while(1) {
+    while (1) {
         struct sockaddr_in addr;
         unsigned int len = sizeof(addr);
-        SSL *ssl;
-        int client = accept(sock, (struct sockaddr*)&addr, &len);
-        if (client < 0) {
+        SSL *pSsl;
+        int nClient = accept(sock, (struct sockaddr*)&addr, &len);
+        if (nClient < 0) {
             perror("Unable to accept");
             exit(EXIT_FAILURE);
         }
-        std::cout << "Connected (" << client << ")" << std::endl;
-        ssl = SSL_new(ctx);
-        SSL_set_fd(ssl, client);
+        std::cout << "Connected (" << nClient << ")" << std::endl;
+        pSsl = SSL_new(ctx);
+        SSL_set_fd(pSsl, nClient);
 
-        if (SSL_accept(ssl) <= 0) {
+        if (SSL_accept(pSsl) <= 0) {
             ERR_print_errors_fp(stderr);
             std::cerr << "Error connection" << std::endl;
-            SSL_shutdown(ssl);
-            SSL_free(ssl);
-            close(client);
+            SSL_shutdown(pSsl);
+            SSL_free(pSsl);
+            close(nClient);
             continue;
         }
 
         // create new thread
-        auto pThread = new SslTunnelThread(ssl, client, "sea5kg.ru", 443);
+        auto pThread = new SslTunnelThread(
+            pSsl,
+            nClient,
+            LISTEN_PORT,
+            TUNNEL_TO_HOST_OR_IP,
+            TUNNEL_TO_PORT
+        );
         pThread->start();
     }
 
     close(sock);
     SSL_CTX_free(ctx);
+    return 0;
 }

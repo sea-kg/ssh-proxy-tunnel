@@ -18,15 +18,18 @@
 
 class SslTunnelThread {
     public:
-        SslTunnelThread(SSL *pSSL, int nClient, const std::string &sHostName, int nHostPort);
+        SslTunnelThread(SSL *pSSL, int nClient, int nListenPort, const std::string &sTunnelToHost, int nTunnelToPort);
         void start();
         void stop();
         void run();
 
     private:
         BIO *connectToServerB(bool &bConnected);
-        std::string m_sHostName;
-        int m_nHostPort;
+        bool replaceHeaderHost(std::string &sStr);
+
+        std::string m_sTunnelToHost;
+        int m_nTunnelToPort;
+        int m_nListenPort;
         bool m_bStop;
         std::thread *m_pThread;
         std::mutex m_vMutexObjects;

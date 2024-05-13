@@ -8,10 +8,11 @@ void* processJobsThreadWorker(void *arg) {
     return 0;
 }
 
-SslTunnelThread::SslTunnelThread(SSL *pSsl, int nClient, const std::string &sHostName, int nHostPort) {
+SslTunnelThread::SslTunnelThread(SSL *pSsl, int nClient, int nListenPort, const std::string &sTunnelToHost, int nTunnelToPort) {
     m_pSsl = pSsl;
-    m_sHostName = sHostName;
-    m_nHostPort = nHostPort;
+    m_sTunnelToHost = sTunnelToHost;
+    m_nTunnelToPort = nTunnelToPort;
+    m_nListenPort = nListenPort;
     m_nClient = nClient;
     m_bStop = false;
     m_pThread = nullptr;
@@ -31,7 +32,7 @@ void SslTunnelThread::stop() {
 void SslTunnelThread::run() {
     std::cout << "Starting..." << std::endl;
     bool bConnected = false;
-    BIO *web = this->connectToServerB(bConnected);
+    BIO *pTunnelToServer = this->connectToServerB(bConnected);
     if (!bConnected) {
         this->stop();
         CONF_modules_unload(0);
@@ -43,33 +44,33 @@ void SslTunnelThread::run() {
 
     while (!m_bStop) {
         // clean buffer
-        std::cout << "\n<<<<< Reading data from (cli-" << m_nClient << ") " << std::endl;
+        std::cout << "\n<<<<< On start Reading data from (cli-" << m_nClient << ") " << std::endl;
         memset(m_pBuffer, 0x0, m_nBufferSize);
         int len = SSL_read(m_pSsl, m_pBuffer, m_nBufferSize);
         if (len > 0) {
-            std::cout << "-----" << std::endl << m_pBuffer << std::endl << "----" << std::endl;
+            std::string sRequest(m_pBuffer);
+            this->replaceHeaderHost(sRequest);
+            std::cout << "-----" << std::endl << sRequest << std::endl << "----" << std::endl;
             std::cout << "\n<<<<< Sending data to (cli-" << m_nClient << "): " << std::endl;
-            BIO_puts(web, m_pBuffer);
+            BIO_puts(pTunnelToServer, sRequest.c_str());
             std::cout << "\n>>>>> Read data from  (cli-" << m_nClient << "): " << std::endl;
             // cleanup buffer
             memset(m_pBuffer, 0x0, m_nBufferSize);
-            len = BIO_read(web, m_pBuffer, 1024);
+            len = BIO_read(pTunnelToServer, m_pBuffer, 1024);
             while (len > 0) {
                 std::cout << "-----" << std::endl << m_pBuffer << std::endl << "----" << std::endl;
                 std::cout << ">>>>> Sending data to  (cli-" << m_nClient << "): " << std::endl;
                 SSL_write(m_pSsl, m_pBuffer, len);
 
-                // std::this_thread::sleep_for(std::chrono::milliseconds(17));
+                std::this_thread::sleep_for(std::chrono::milliseconds(17));
                 std::cout << "\n>>>>> Read data from  (cli-" << m_nClient << "): " << std::endl;
                 memset(m_pBuffer, 0x0, m_nBufferSize);
-                len = BIO_read(web, m_pBuffer, 1024);
+                len = BIO_read(pTunnelToServer, m_pBuffer, 1024);
             }
             // char answer[] = "\n ";
             // answer[29] = 0;
             // SSL_write(ssl, answer, 30);
         }
-
-
 
         // std::lock_guard<std::mutex> guard(m_vMutexObjects);
         // // int nSize = m_vObjects.size();
@@ -87,7 +88,7 @@ void SslTunnelThread::run() {
 
 BIO *SslTunnelThread::connectToServerB(bool &bConnected) {
     bConnected = true;
-    std::string sConnectionString = m_sHostName + ":" + std::to_string(m_nHostPort);
+    std::string sConnectionString = m_sTunnelToHost + ":" + std::to_string(m_nTunnelToPort);
 
     long res = 1;
 
@@ -158,7 +159,7 @@ BIO *SslTunnelThread::connectToServerB(bool &bConnected) {
         return nullptr;
     }
 
-    res = SSL_set_tlsext_host_name(ssl, m_sHostName.c_str());
+    res = SSL_set_tlsext_host_name(ssl, m_sTunnelToHost.c_str());
     if(!(1 == res)) {
         bConnected = false;
         ERR_print_errors_fp(stderr);
@@ -204,4 +205,18 @@ BIO *SslTunnelThread::connectToServerB(bool &bConnected) {
     /* An exercise left to the reader */
     bConnected = true;
     return web;
+}
+
+bool SslTunnelThread::replaceHeaderHost(std::string &sStr) {
+    std::string sFrom = "Host: 127.0.0.1:" + std::to_string(m_nListenPort);
+    std::string sTo = "Host: " + m_sTunnelToHost + ":" + std::to_string(m_nTunnelToPort);
+    size_t start_pos = 0;
+    bool bReplaced = false;
+    while ((start_pos = sStr.find(sFrom, start_pos)) != std::string::npos) {
+        std::cout << "Will be replaced: '" << sFrom << "' "  << std::endl;
+        bReplaced = true;
+        sStr.replace(start_pos, sFrom.length(), sTo);
+        start_pos += sTo.length(); // In case 'to' contains 'sFrom', like replacing 'x' with 'yx'
+    }
+    return bReplaced;
 }
